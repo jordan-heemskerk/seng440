@@ -12,7 +12,7 @@ Using the terminal it is possible to use these programs. Commands are broken dow
 This program converts from RGB to YCbCr. Navigate to the folder containing the exe. Input and output files must be in the correct video format, and the file names must reflect that file type. This would be an additional parameter.
 
 ```
-./RGBtoYCbCr <inputRGBFileName> <outputYCbCrFileName>
+qemu-arm bin/RGBtoYCbCr <inputRGBFileName> <outputYCbCrFileName>
 ```
 
 Future versions may include the ability to specify the compression of the file to 4 : x : y, where x and y specify the chromatic sampling rates.
@@ -21,7 +21,7 @@ Future versions may include the ability to specify the compression of the file t
 This program converts from YCbCr to RGB. Navigate to the folder containing the exe. Input and output files must be in the correct video format, and the file names must reflect that file type.
 
 ```
-./RGBtoYCbCr <inputYCbCrFileName> <outputRGBFileName>
+qemu-arm bin/RGBtoYCbCr <inputYCbCrFileName> <outputRGBFileName>
 ```
 
 Future versions may include the ability to specify the compression of the file to 4 : x : y, where x and y specify the chromatic sampling rates. This would be an additional parameter.
@@ -30,7 +30,7 @@ Future versions may include the ability to specify the compression of the file t
 This program performs Mean Squared Error (MSE) comparisons between the input and output RGB video file content. The larger this error is the lower quality the conversion to YCbCr
 
 ```
-./MSE <inputRGBFileName> <outputRGBFileName>
+qemu-arm bin/MSE <inputRGBFileName> <outputRGBFileName>
 ```
 
 The results of this program will be written out to the console. 
