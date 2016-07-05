@@ -1,5 +1,5 @@
 CC = arm-linux-gcc
-CFLAGS = -g -Wall -O3 
+CFLAGS = -static 
 LDFLAGS =
 
 all: RGBtoYCbCr YCbCrtoRGB MSE
