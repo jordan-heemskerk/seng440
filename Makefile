@@ -8,10 +8,13 @@ clean:
 	rm -rf *.o RGBtoYCbCr YCbCrtoRGB MSE
 
 RGBtoYCbCr: RGBtoYCbCr.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
+	mkdir -p bin
+	$(CC) $(CFLAGS) -o bin/$@ $^ $(LDFLAGS) 
 
 YCbCrtoRGB: YCbCrtoRGB.o 
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
+	mkdir -p bin
+	$(CC) $(CFLAGS) -o bin/$@ $^ $(LDFLAGS) 
 	
 MSE: MSE.o 
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
+	mkdir -p bin
+	$(CC) $(CFLAGS) -o bin/$@ $^ $(LDFLAGS) 
