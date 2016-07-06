@@ -34,6 +34,8 @@ int main(int argc, char** argv){
     uint32_t dest2[SRC_WIDTH/2];
 
     FILE *src_file;
+    FILE *dest_file;
+
 
     src_file = fopen(argv[1], "rb");
 
@@ -42,8 +44,17 @@ int main(int argc, char** argv){
         return 1;
     }
 
+    dest_file = fopen(argv[2], "wb");
+
+    if (!dest_file) {
+
+        printf("Unable to open %s for writing \n", argv[2]);
+        return 1;
+
+    }
+
     float r,g,b,y1,y2,y3,y4,cr,cb;
-    uint32_t rgba;
+    uint32_t rgba, ycy;
 
     int i,j;
     for (i = 0; i < SRC_HEIGHT; i+=2) {
@@ -93,12 +104,25 @@ int main(int argc, char** argv){
             cb += 128.0 - 0.148*r - 0.291*g + 0.439*b;
             cr += 128.0 + 0.439*r - 0.368*g - 0.071*b;
 
-            cb /= 4;
-            cr /= 4;
+            cb /= 4.0;
+            cr /= 4.0;
 
-            //YCrY and YCbY into 2 uint32_t's and store in dest1 and dest2 at j/2
+            ycy = (uint32_t)(uint8_t)y1;
+            ycy |= (uint32_t)((uint8_t)cb << 8);
+            ycy |= (uint32_t)((uint8_t)y2 << 16);
+
+            dest1[j/2] = ycy;
+ 
+            ycy = (uint32_t)(uint8_t)y3;
+            ycy |= (uint32_t)((uint8_t)cr << 8);
+            ycy |= (uint32_t)((uint8_t)y4 << 16);
+
+            dest2[j/2] = ycy;            
 
         }
+
+        fwrite(&dest1[0], sizeof(uint32_t), SRC_WIDTH/2, dest_file);
+        fwrite(&dest2[0], sizeof(uint32_t), SRC_WIDTH/2, dest_file);
 
     }
     
