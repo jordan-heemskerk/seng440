@@ -65,16 +65,17 @@ int main(int argc, char** argv){
             ycy1 = src1[j/2];
 
             // apply scaling here too
-            y2 = (float)(uint8_t)ycy1 - 16.0;
+            y1 = (float)(uint8_t)ycy1 - 16.0;
             cb = (float)(uint8_t)(ycy1 >> 8) - 128.0;
-            y1 = (float)(uint8_t)(ycy1 >> 16) - 16.0;
+            y2 = (float)(uint8_t)(ycy1 >> 16) - 16.0;
 
             ycy2 = src2[j/2];
 
             // also apply scaling here too            
-            y4 = (float)(uint8_t)ycy2 - 16.0;
+            y3 = (float)(uint8_t)ycy2 - 16.0;
             cr = (float)(uint8_t)(ycy2 >> 8) - 128.0;
-            y3 = (float)(uint8_t)(ycy2 >> 16) - 16.0;
+            y4 = (float)(uint8_t)(ycy2 >> 16) - 16.0;
+
 
             // get first rgba
             r = 1.164*y1 + 0.000*cb + 1.596*cr;
