@@ -5,7 +5,7 @@ LDFLAGS =
 all: RGBtoYCbCr YCbCrtoRGB MSE
 
 clean: 
-	rm -rf *.o RGBtoYCbCr YCbCrtoRGB MSE
+	rm -rf *.o bin
 
 RGBtoYCbCr: RGBtoYCbCr.o
 	mkdir -p bin
