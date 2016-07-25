@@ -26,12 +26,10 @@ inline uint32_t fpMulQ88(uint32_t a, uint32_t b) {
     // Remove for efficiency
     //assert(a < 0xffffffff);
     //assert(b < 0xffffffff);
-
-    uint32_t res = a * b;
-
-    return res >> 8; // discard LSByte for half precision
+    return (a * b) >> 8; // discard LSByte for half precision
 
 }
+
 
 int main(int argc, char** argv){
 
@@ -68,8 +66,8 @@ int main(int argc, char** argv){
 
     }
 
-    uint32_t r,g,b,y1,y2,y3,y4,cr,cb;
-    uint32_t rgba, ycy;
+    uint32_t r,g,b,y,cr,cb;
+    uint32_t rgba, ycy1, ycy2;
 
     int i,j;
     for (i = 0; i < SRC_HEIGHT; i+=2) {
@@ -97,8 +95,10 @@ int main(int argc, char** argv){
             //      0.368 = 94
             //      0.071 = 18
             //
-            rgba = src1[j];
 
+
+            // Read upper left pixel
+            rgba = src1[j];
             r = (uint32_t)(uint8_t)(rgba >> 24);
             g = (uint32_t)(uint8_t)(rgba >> 16);
             b = (uint32_t)(uint8_t)(rgba >> 8);
@@ -108,12 +108,16 @@ int main(int argc, char** argv){
             g <<= 8;
             b <<= 8;
 
-            y1 = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
+            y = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
             cb = (128 << 8) - fpMulQ88(38 , r) - fpMulQ88(74 , g) + fpMulQ88(112, b);
             cr = (128 << 8) + fpMulQ88(112, r) - fpMulQ88(94 , g) - fpMulQ88(18 , b);
 
+
+            y >>= 8;
+            ycy1 = (uint32_t)(uint8_t)y;
+
+            // Read upper right pixel
             rgba = src1[j+1];
-            
             r = (uint32_t)(uint8_t)(rgba >> 24);
             g = (uint32_t)(uint8_t)(rgba >> 16);
             b = (uint32_t)(uint8_t)(rgba >> 8);
@@ -123,12 +127,15 @@ int main(int argc, char** argv){
             g <<= 8;
             b <<= 8;
 
-            y2 = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
+            y = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
             cb += (128 << 8) - fpMulQ88(38 , r) - fpMulQ88(74 , g) + fpMulQ88(112, b);
             cr += (128 << 8) + fpMulQ88(112, r) - fpMulQ88(94 , g) - fpMulQ88(18 , b);
             
+            y >>= 8;
+            ycy1 |= (uint32_t)((uint8_t)y << 16);
+
+            // Read lower left pixel
             rgba = src2[j];
-            
             r = (uint32_t)(uint8_t)(rgba >> 24);
             g = (uint32_t)(uint8_t)(rgba >> 16);
             b = (uint32_t)(uint8_t)(rgba >> 8);
@@ -138,10 +145,14 @@ int main(int argc, char** argv){
             g <<= 8;
             b <<= 8;
 
-            y3 = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
+            y = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
             cb += (128 << 8) - fpMulQ88(38 , r) - fpMulQ88(74 , g) + fpMulQ88(112, b);
             cr += (128 << 8) + fpMulQ88(112, r) - fpMulQ88(94 , g) - fpMulQ88(18 , b);
             
+            y >>= 8;
+            ycy2 = (uint32_t)(uint8_t)y;
+
+            // Read lower right pixel
             rgba = src2[j+1];
             
             r = (uint32_t)(uint8_t)(rgba >> 24);
@@ -153,33 +164,29 @@ int main(int argc, char** argv){
             g <<= 8;
             b <<= 8;
 
-            y4 = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
+            y = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
             cb += (128 << 8) - fpMulQ88(38 , r) - fpMulQ88(74 , g) + fpMulQ88(112, b);
             cr += (128 << 8) + fpMulQ88(112, r) - fpMulQ88(94 , g) - fpMulQ88(18 , b);
 
+            y >>= 8;
+            ycy2 |= (uint32_t)((uint8_t)y << 16);
+
+            // Average the chrominance samples
             // This average doesn't change under Q88, becuase we just average in fixed point space
             cb /= 4;
             cr /= 4;
 
-            // Convert Q8.8 to back to real life
-            y1 >>= 8;
-            y2 >>= 8;
-            y3 >>= 8;
-            y4 >>= 8;
+            // Convert Q8.8 to back to 0->255 integer
             cb >>= 8;
             cr >>= 8;
 
-            ycy = (uint32_t)(uint8_t)y1;
-            ycy |= (uint32_t)((uint8_t)cb << 8);
-            ycy |= (uint32_t)((uint8_t)y2 << 16);
 
-            dest1[j/2] = ycy;
- 
-            ycy = (uint32_t)(uint8_t)y3;
-            ycy |= (uint32_t)((uint8_t)cr << 8);
-            ycy |= (uint32_t)((uint8_t)y4 << 16);
+            // Pack into output format 4:2:0
+            ycy1 |= (uint32_t)((uint8_t)cb << 8);
+            ycy2 |= (uint32_t)((uint8_t)cr << 8);
 
-            dest2[j/2] = ycy;            
+            dest1[j/2] = ycy1;
+            dest2[j/2] = ycy2;
 
         }
 
