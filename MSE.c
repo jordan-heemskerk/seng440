@@ -52,7 +52,7 @@ int main(int argc, char** argv){
 
     uint32_t src_rgba, dest_rgba;
 
-    uint8_t chan1,chan2;
+    int16_t chan1,chan2;
 
     int i,j;
 
@@ -67,20 +67,20 @@ int main(int argc, char** argv){
             dest_rgba = dest[j];
 
             // RED
-            chan1 = (uint8_t)(src_rgba >> 24);
-            chan2 = (uint8_t)(dest_rgba >> 24);
+            chan1 = (int16_t)(uint8_t)(src_rgba >> 24);
+            chan2 = (int16_t)(uint8_t)(dest_rgba >> 24);
 
             mse_r += (chan2 - chan1) * (chan2 - chan1);
 
             // GREEN
-            chan1 = (uint8_t)(src_rgba >> 16);
-            chan2 = (uint8_t)(dest_rgba >> 16);
+            chan1 = (int16_t)(uint8_t)(src_rgba >> 16);
+            chan2 = (int16_t)(uint8_t)(dest_rgba >> 16);
 
             mse_g += (chan2 - chan1) * (chan2 - chan1);
 
             // BLUE
-            chan1 = (uint8_t)(src_rgba >> 8);
-            chan2 = (uint8_t)(dest_rgba >> 8);
+            chan1 = (int16_t)(uint8_t)(src_rgba >> 8);
+            chan2 = (int16_t)(uint8_t)(dest_rgba >> 8);
 
             mse_b += (chan2 - chan1) * (chan2 - chan1);
 
