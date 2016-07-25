@@ -2,11 +2,77 @@
 
 #include "RGBtoYCbCr.h"
 #include <stdint.h>
-//#include <assert.h>
-
 
 #define SRC_WIDTH 640
 #define SRC_HEIGHT 480
+
+
+
+// We represent the arithemtic using Q8.8 = 8 bits integer, 8 bits fractional
+//
+// The formula to convert a pure fractional number x to its Q8.8
+// value, y, is
+//
+//  y = int(x * 2^8 + 0.5)
+//
+//  Converting the pure fractional values in the
+//  conversion matrix yields the following
+//      0.257 = 66
+//      0.504 = 129
+//      0.098 = 25
+//      0.148 = 38
+//      0.291 = 74
+//      0.439 = 112
+//      0.368 = 94
+//      0.071 = 18
+//
+#define convert_asm(rgba, y, cb, cr) \
+__asm__( \
+     /* Unpack rgb values in Q88 in registers r10->r12 */ \
+     "mov   r10, %3, lsr #16 \n" /* get r in Q88 */ \
+     "and   r10, #0xFF00 \n" \
+     "mov   r11, %3, lsr #8 \n" /* get g in Q88*/ \
+     "and   r11, #0xFF00 \n" \
+     "mov   r12, %3 \n"  /* get b in Q88 */ \
+     "and   r12, #0xFF00 \n" \
+\
+     /* Calculate Y */ \
+     "mov   %0, #0x1000 \n"   /* y = (16 << 8) */\
+     "mov   r8, #66 \n" \
+     "mul   r9, r10, r8 \n"  /* r * 66 */ \
+     "add   %0, %0, r9, lsr #8 \n"   /* y += r*66 */ \
+     "mov   r8, #129 \n" \
+     "mul   r9, r11, r8 \n"  /* g * 129 */ \
+     "add   %0, %0, r9, lsr #8 \n"   /* y += g * 129 */ \
+     "mov   r8, #25 \n" \
+     "mul   r9, r12, r8 \n"  /* b * 25 */ \
+     "add   %0, %0, r9, lsr #8 \n"   /* y += b * 25 */  \
+\
+     /* Calculate Cb */ \
+     "add   %1, #0x8000 \n"   /* cb = (128 << 8) */ \
+     "mov   r8, #38 \n" \
+     "mul   r9, r10, r8 \n"  /* r * 38 */ \
+     "sub   %1, r9, lsr #8 \n"       /* cb -= r * 38 */ \
+     "mov   r8, #74 \n" \
+     "mul   r9, r11, r8 \n"  /* g * 74  */\
+     "sub   %1, r9, lsr #8 \n"       /* cb -= g * 74 */ \
+     "mov   r8, #112 \n" \
+     "mul   r9, r12, r8 \n"  /* b * 112 */ \
+     "add   %1, %1, r9, lsr #8 \n"   /* y += b * 112 */ \
+\
+     /* Calculate Cr */ \
+     "add   %2, #0x8000 \n"    /* cr = (128 << 8) */ \
+     "mov   r8, #112 \n" \
+     "mul   r9, r10, r8 \n"   /* r * 112 */ \
+     "add   %2, %2, r9, lsr #8 \n"    /* cr += r * 112 */ \
+     "mov   r8, #94 \n" \
+     "mul   r9, r11, r8 \n"   /* g * 94 */ \
+     "sub   %2, r9, lsr #8 \n"        /* cr -= g * 94 */ \
+     "mov   r8, #18 \n" \
+     "mul   r9, r12, r8 \n"   /* b * 18 */ \
+     "sub   %2, r9, lsr #8 \n"        /* cr -= b * 18 */ \
+\
+: "=r" (y), "+r" (cb), "+r" (cr) : "r" (rgba) : "r12", "r11", "r10", "r9", "r8")
 
 //useful examples are found in /home/frodo/public/ugls_lab/SPL/share/SPL/demo
 int commandLineArgsValid(int argc, char** argv){
@@ -17,17 +83,6 @@ int commandLineArgsValid(int argc, char** argv){
 	}
 	  
 	return 1;
-}
-
-
-// Multiply two Q88 fixed point numbers to half precision
-inline uint32_t fpMulQ88(uint32_t a, uint32_t b) {
-
-    // Remove for efficiency
-    //assert(a < 0xffffffff);
-    //assert(b < 0xffffffff);
-    return (a * b) >> 8; // discard LSByte for half precision
-
 }
 
 
@@ -77,96 +132,38 @@ int main(int argc, char** argv){
 
         for (j = 0; j < SRC_WIDTH; j+=2) {
 
-            // We represent the arithemtic using Q8.8 = 8 bits integer, 8 bits fractional
-            //
-            // The formula to convert a pure fractional number x to its Q8.8
-            // value, y, is
-            //
-            //  y = int(x * 2^8 + 0.5)
-            //
-            //  Converting the pure fractional values in the
-            //  conversion matrix yields the following
-            //      0.257 = 66
-            //      0.504 = 129
-            //      0.098 = 25
-            //      0.148 = 38
-            //      0.291 = 74
-            //      0.439 = 112
-            //      0.368 = 94
-            //      0.071 = 18
-            //
-
-
             // Read upper left pixel
             rgba = src1[j];
-            r = (uint32_t)(uint8_t)(rgba >> 24);
-            g = (uint32_t)(uint8_t)(rgba >> 16);
-            b = (uint32_t)(uint8_t)(rgba >> 8);
 
-            // Convert to Q88
-            r <<= 8;
-            g <<= 8;
-            b <<= 8;
+            // we accumulate these in convert_asm
+            cb = 0;
+            cr = 0;
 
-            y = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
-            cb = (128 << 8) - fpMulQ88(38 , r) - fpMulQ88(74 , g) + fpMulQ88(112, b);
-            cr = (128 << 8) + fpMulQ88(112, r) - fpMulQ88(94 , g) - fpMulQ88(18 , b);
-
+            convert_asm(rgba, y, cb, cr);
 
             y >>= 8;
             ycy1 = (uint32_t)(uint8_t)y;
 
             // Read upper right pixel
             rgba = src1[j+1];
-            r = (uint32_t)(uint8_t)(rgba >> 24);
-            g = (uint32_t)(uint8_t)(rgba >> 16);
-            b = (uint32_t)(uint8_t)(rgba >> 8);
-
-            // Convert to Q88
-            r <<= 8;
-            g <<= 8;
-            b <<= 8;
-
-            y = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
-            cb += (128 << 8) - fpMulQ88(38 , r) - fpMulQ88(74 , g) + fpMulQ88(112, b);
-            cr += (128 << 8) + fpMulQ88(112, r) - fpMulQ88(94 , g) - fpMulQ88(18 , b);
-            
+           
+            convert_asm(rgba, y, cb, cr);
+ 
             y >>= 8;
             ycy1 |= (uint32_t)((uint8_t)y << 16);
 
             // Read lower left pixel
             rgba = src2[j];
-            r = (uint32_t)(uint8_t)(rgba >> 24);
-            g = (uint32_t)(uint8_t)(rgba >> 16);
-            b = (uint32_t)(uint8_t)(rgba >> 8);
 
-            // Convert to Q88
-            r <<= 8;
-            g <<= 8;
-            b <<= 8;
+            convert_asm(rgba, y, cb, cr);
 
-            y = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
-            cb += (128 << 8) - fpMulQ88(38 , r) - fpMulQ88(74 , g) + fpMulQ88(112, b);
-            cr += (128 << 8) + fpMulQ88(112, r) - fpMulQ88(94 , g) - fpMulQ88(18 , b);
-            
             y >>= 8;
             ycy2 = (uint32_t)(uint8_t)y;
 
             // Read lower right pixel
             rgba = src2[j+1];
-            
-            r = (uint32_t)(uint8_t)(rgba >> 24);
-            g = (uint32_t)(uint8_t)(rgba >> 16);
-            b = (uint32_t)(uint8_t)(rgba >> 8);
 
-            // Convert to Q88
-            r <<= 8;
-            g <<= 8;
-            b <<= 8;
-
-            y = (16  << 8) + fpMulQ88(66 , r) + fpMulQ88(129, g) + fpMulQ88(25 , b);
-            cb += (128 << 8) - fpMulQ88(38 , r) - fpMulQ88(74 , g) + fpMulQ88(112, b);
-            cr += (128 << 8) + fpMulQ88(112, r) - fpMulQ88(94 , g) - fpMulQ88(18 , b);
+            convert_asm(rgba, y, cb, cr);            
 
             y >>= 8;
             ycy2 |= (uint32_t)((uint8_t)y << 16);
@@ -179,7 +176,6 @@ int main(int argc, char** argv){
             // Convert Q8.8 to back to 0->255 integer
             cb >>= 8;
             cr >>= 8;
-
 
             // Pack into output format 4:2:0
             ycy1 |= (uint32_t)((uint8_t)cb << 8);
